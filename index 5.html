@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>DEAD ZONE — 3D Survival</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101719;color:#e9eee9;font-family:system-ui,Arial}
+canvas{display:block}#hud{position:fixed;inset:0;pointer-events:none;padding:14px;text-shadow:0 2px 5px #000}
+#brand{font-size:23px;font-weight:900;letter-spacing:4px}#sub{font-size:10px;letter-spacing:2px;color:#c2c9c2}
+#stats{margin-top:12px;background:#101719bb;border:1px solid #65716c;padding:10px;border-radius:10px;width:min(310px,85vw);font-size:12px;line-height:1.8}
+#objective{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:#101719c9;border:1px solid #65716c;padding:9px 13px;border-radius:8px;font-size:12px;text-align:center;width:max-content;max-width:90vw}
+#toast{position:absolute;top:24%;left:50%;transform:translateX(-50%);background:#101719df;padding:10px 15px;border-radius:8px;font-weight:700;opacity:0;transition:opacity .2s;text-align:center}
+#start{position:fixed;inset:0;background:#0d1515eF;display:grid;place-items:center;padding:22px;text-align:center}
+#card{max-width:480px;background:#1b2828;border:1px solid #59665e;border-radius:16px;padding:25px}
+h1{font-size:42px;letter-spacing:5px;margin:0}button{background:#b28a54;color:#15130f;border:0;padding:13px 18px;border-radius:9px;font-weight:900;font-size:15px;cursor:pointer}
+#touch{position:fixed;bottom:75px;left:12px;display:none;gap:6px;pointer-events:auto}
+#touch button,#actions button{background:#1b2929dd;color:#fff;border:1px solid #87918a;padding:12px;min-width:48px}
+#actions{position:fixed;right:12px;bottom:75px;display:flex;flex-direction:column;gap:6px;pointer-events:auto}
+#actions button{font-size:12px;padding:10px}
+#look{position:fixed;inset:0;pointer-events:none}
+@media(pointer:coarse){#touch{display:grid;grid-template-columns:repeat(3,48px)}#touch button:nth-child(1){grid-column:2}#touch button:nth-child(2){grid-column:1;grid-row:2}#touch button:nth-child(3){grid-column:2;grid-row:2}#touch button:nth-child(4){grid-column:3;grid-row:2}}
+</style>
+</head>
+<body>
+<div id="hud">
+ <div id="brand">DEAD ZONE</div><div id="sub">THE LAST FIVE NIGHTS · 3D SURVIVAL</div>
+ <div id="stats">DAY 1 / 5<br>HEALTH 100 · ENERGY 85<br>FOOD 3 · WATER 3 · WOOD 2<br>3 ACTIONS LEFT</div>
+ <div id="toast"></div>
+ <div id="objective">WASD / arrow keys to move · mouse to look · E to collect supplies</div>
+</div>
+<div id="touch">
+ <button data-move="forward">▲</button><button data-move="left">◀</button><button data-move="back">▼</button><button data-move="right">▶</button>
+</div>
+<div id="actions">
+ <button id="collect">E · COLLECT</button><button id="fire">F · FIRE (2 WOOD)</button><button id="shelter">B · SHELTER (3 WOOD)</button><button id="rest">R · REST</button><button id="end">N · END DAY</button>
+</div>
+<div id="start"><div id="card"><div style="font-size:11px;letter-spacing:3px;color:#c9b58f">SURVIVAL PROTOCOL // 001</div><h1>DEAD ZONE</h1><p>You're stranded in a remote wilderness. Find supplies, build shelter and survive five nights until rescue.</p><p style="font-size:13px;color:#b8c2ba">Desktop: WASD to move, mouse to look, E collect, F fire, B shelter, R rest, N end day.<br>Touch devices: use the direction pad and action buttons.</p><button id="begin">START SURVIVAL</button></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x71848a);scene.fog=new THREE.Fog(0x71848a,24,95);
+const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,150);
+camera.position.set(0,2,8);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xbacbd0,0x394638,2));
+const sun=new THREE.DirectionalLight(0xffe4bc,2.1);sun.position.set(-20,35,15);sun.castShadow=true;scene.add(sun);
+const mat=(c)=>new THREE.MeshStandardMaterial({color:c,roughness:1});
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(180,180),mat(0x52634b));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+function box(x,y,z,sx,sy,sz,c,rot=0){const m=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat(c));m.position.set(x,y,z);m.rotation.y=rot;m.castShadow=true;m.receiveShadow=true;scene.add(m);return m}
+function tree(x,z){let h=2.8+Math.random()*3.4;const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.18,.27,h,6),mat(0x594332));trunk.position.set(x,h/2,z);trunk.castShadow=true;scene.add(trunk);const crown=new THREE.Mesh(new THREE.ConeGeometry(1.3+Math.random(),3+Math.random()*2,7),mat([0x294a39,0x345640,0x3d5945][Math.floor(Math.random()*3)]));crown.position.set(x,h+1,z);crown.castShadow=true;scene.add(crown)}
+for(let i=0;i<155;i++){let x=(Math.random()-.5)*115,z=(Math.random()-.5)*115;if(Math.abs(x)<7&&Math.abs(z)<8)continue;tree(x,z)}
+for(let i=0;i<12;i++){const m=new THREE.Mesh(new THREE.ConeGeometry(8+Math.random()*8,18+Math.random()*12,5),mat(0x465454));m.position.set((i-6)*14,9,-62-Math.random()*7);scene.add(m)}
+// wreckage and campsite
+box(3,.5,1,4,.35,2,0x747d7b,.3);box(1.5,1.2,1.6,.2,2,.2,0x4c5555,.2);box(4,1,0,.2,1.7,.2,0x4c5555,-.3);
+box(0,.08,0,3,.16,3,0x75644e);
+const pickups=[];function pickup(kind,x,z){let color={food:0xb78a4c,water:0x5597b4,wood:0x95603b,med:0xb34b43}[kind];let geo=kind==='wood'?new THREE.BoxGeometry(.65,.5,.45):new THREE.SphereGeometry(.38,12,10);let o=new THREE.Mesh(geo,mat(color));o.position.set(x,.5,z);o.userData={kind,base:.5,phase:Math.random()*6};o.castShadow=true;scene.add(o);pickups.push(o)}
+for(let i=0;i<8;i++)pickup('food',(Math.random()-.5)*42,(Math.random()-.5)*42);
+for(let i=0;i<10;i++)pickup('wood',(Math.random()-.5)*48,(Math.random()-.5)*48);
+for(let i=0;i<7;i++)pickup('water',(Math.random()-.5)*45,(Math.random()-.5)*45);
+for(let i=0;i<2;i++)pickup('med',(Math.random()-.5)*30,(Math.random()-.5)*30);
+const state={day:1,hp:100,en:85,food:3,water:3,wood:2,actions:3,fire:false,shelter:false,night:false,over:false};
+let yaw=0,pitch=0,started=false,toastTimer;
+const stats=document.querySelector('#stats'),toast=document.querySelector('#toast'),objective=document.querySelector('#objective');
+function say(t){toast.textContent=t;toast.style.opacity=1;clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.style.opacity=0,2600)}
+function ui(){stats.innerHTML=`DAY ${state.day} / 5<br>HEALTH ${state.hp} · ENERGY ${state.en}<br>FOOD ${state.food} · WATER ${state.water} · WOOD ${state.wood}<br>${state.actions} ACTIONS LEFT · FIRE ${state.fire?'READY':'OFF'}`}
+function action(){if(state.over||state.night||state.actions<=0){say('No actions left. End the day.');return false}state.actions--;state.en=Math.max(0,state.en-5);return true}
+function nearest(){let best=null,d=3.3;for(const p of pickups){if(!p.visible)continue;let q=p.position.distanceTo(camera.position);if(q<d){d=q;best=p}}return best}
+function collect(){let p=nearest();if(!p){say('No supplies nearby. Explore the forest.');return}let k=p.userData.kind;if(k==='food'){state.food++;say('Ration collected +1')}if(k==='water'){state.water++;say('Water collected +1')}if(k==='wood'){state.wood++;say('Wood collected +1')}if(k==='med'){state.hp=Math.min(100,state.hp+25);say('Medical kit +25 health')}scene.remove(p);p.visible=false;ui()}
+function buildFire(){if(state.wood<2){say('Need 2 wood.');return}if(!action())return;state.wood-=2;state.fire=true;const flame=new THREE.Mesh(new THREE.ConeGeometry(.45,1.2,7),new THREE.MeshBasicMaterial({color:0xff8b36}));flame.position.set(0,.7,0);scene.add(flame);say('Campfire prepared. Protection for one night.');ui()}
+function buildShelter(){if(state.wood<3){say('Need 3 wood.');return}if(!action())return;state.wood-=3;state.shelter=true;box(0,1,-1.5,3.5,.2,2.8,0x70563e,.16);box(-1.5,.65,-1.5,.16,1.3,.16,0x59432f);box(1.5,.65,-1.5,.16,1.3,.16,0x59432f);say('Shelter reinforced.');ui()}
+function rest(){if(!action())return;state.en=Math.min(100,state.en+28);say('You rest. +28 energy.');ui()}
+function endDay(){if(state.over||state.night)return;state.night=true;let damage=0;if(state.food>0)state.food--;else damage+=12;if(state.water>0)state.water--;else damage+=15;if(!state.shelter)damage+=14;if(!state.fire)damage+=7;state.fire=false;state.hp=Math.max(0,state.hp-damage);state.en=Math.max(0,state.en-8);ui();say(`Night ${state.day}: ${damage} health lost.`);if(state.hp<=0){finish(false,'The wilderness overwhelmed you.');return}setTimeout(()=>{if(state.day===5){finish(true,'A rescue helicopter spots your camp at dawn. You survived!');return}state.day++;state.actions=3;state.night=false;state.shelter=false;ui();say(`Day ${state.day}. Three new actions. Keep going.`)},2500)}
+function finish(win,msg){state.over=true;const overlay=document.createElement('div');overlay.id='finish';overlay.style.cssText='position:fixed;inset:0;background:#101719eF;display:grid;place-items:center;text-align:center;padding:25px';overlay.innerHTML=`<div><h1>${win?'MISSION COMPLETE':'MISSION FAILED'}</h1><p>${msg}</p><button onclick="location.reload()">RESTART</button></div>`;document.body.append(overlay)}
+document.querySelector('#begin').onclick=()=>{started=true;document.querySelector('#start').remove();if(matchMedia('(pointer:fine)').matches)renderer.domElement.requestPointerLock?.();say('Find supplies and prepare for nightfall.')};
+document.querySelector('#collect').onclick=collect;document.querySelector('#fire').onclick=buildFire;document.querySelector('#shelter').onclick=buildShelter;document.querySelector('#rest').onclick=rest;document.querySelector('#end').onclick=endDay;
+addEventListener('keydown',e=>{if(!started)return;keys[e.key.toLowerCase()]=true;if(e.key.toLowerCase()==='e')collect();if(e.key.toLowerCase()==='f')buildFire();if(e.key.toLowerCase()==='b')buildShelter();if(e.key.toLowerCase()==='r')rest();if(e.key.toLowerCase()==='n')endDay()});
+addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+let keys={};document.addEventListener('mousemove',e=>{if(document.pointerLockElement===renderer.domElement){yaw-=e.movementX*.002;pitch-=e.movementY*.002;pitch=Math.max(-1.25,Math.min(1.25,pitch))}});
+let touchMoves={};document.querySelectorAll('[data-move]').forEach(b=>{let k=b.dataset.move;b.addEventListener('pointerdown',e=>{e.preventDefault();touchMoves[k]=true});['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>touchMoves[k]=false))});
+let last=performance.now();function animate(now){requestAnimationFrame(animate);let dt=Math.min((now-last)/1000,.04);last=now;
+ if(started&&!state.over){let forward=(keys.w||keys.arrowup||touchMoves.forward?1:0)-(keys.s||keys.arrowdown||touchMoves.back?1:0);let side=(keys.d||keys.arrowright||touchMoves.right?1:0)-(keys.a||keys.arrowleft||touchMoves.left?1:0);let speed=6*dt;camera.position.x+=Math.sin(yaw)*forward*speed+Math.cos(yaw)*side*speed;camera.position.z-=Math.cos(yaw)*forward*speed-Math.sin(yaw)*side*speed;camera.position.x=Math.max(-65,Math.min(65,camera.position.x));camera.position.z=Math.max(-65,Math.min(65,camera.position.z));camera.position.y=1.7;camera.rotation.order='YXZ';camera.rotation.set(pitch,yaw,0);
+ if(nearest())objective.textContent='Press E to collect nearby supplies';else objective.textContent='Explore the forest · WASD to move · E to collect';
+ }
+ for(const p of pickups)if(p.visible){p.position.y=p.userData.base+Math.sin(now*.002+p.userData.phase)*.09;p.rotation.y+=dt*.7}
+ renderer.render(scene,camera)}
+requestAnimationFrame(animate);addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+ui();
+</script></body></html>
